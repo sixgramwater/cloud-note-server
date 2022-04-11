@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { randomUUID } from 'crypto';
+import { FileService } from 'src/file/file.service';
 import { UsersService } from 'src/users/users.service';
 
 @Injectable()
@@ -7,6 +9,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly fileService: FileService,
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
@@ -30,6 +33,14 @@ export class AuthService {
     // const { username, password } = user;
     const res = await this.usersService.create(user);
     res.password = '';
+    const userRootEntry = {
+      fileId: randomUUID(),
+      name: 'ROOT',
+      userId: res._id,
+      parentId: null,
+      dir: true,
+    }
+    await this.fileService.create(userRootEntry);
     return res;
   }
 }

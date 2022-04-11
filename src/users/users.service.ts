@@ -39,7 +39,7 @@ export class UsersService {
   async create(createUserDto: CreateUserDto) {
     const user = new this.userModel(createUserDto);
     const { username } = createUserDto;
-    const exsitingUser = await this.findOneByUsername(username);
+    const exsitingUser = await this.userModel.findOne({ username: username }).exec();
     if(exsitingUser) {
       throw new BadRequestException(`username has been taken!`);
     }
