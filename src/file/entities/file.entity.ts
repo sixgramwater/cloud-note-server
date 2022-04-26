@@ -39,6 +39,18 @@ export class File extends Document{
   @Prop()
   dir: boolean;
 
+  @Prop()
+  type: number;
+
+  @Prop({
+    default: false
+  })
+  star: boolean;
+
+  @Prop({
+    default: false
+  })
+  deleted: boolean;
   // @Prop()
 
 }

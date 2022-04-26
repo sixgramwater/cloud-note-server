@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
@@ -23,7 +27,36 @@ export class FileService {
   async findAll(userId?: string, parentId?: string) {
     // console.log(userId);
     const files = await this.fileModel
-      .find({ userId, parentId }, { _id: 0 })
+      .find({ userId, parentId, deleted: false }, { _id: 0, deleted: 0 })
+      .exec();
+    if (!files) {
+      throw new NotFoundException(`files not found`);
+    }
+    return files;
+  }
+
+  async findAllWithoutErrorHandle(userId?: string, parentId?: string) {
+    // console.log(userId);
+    const files = await this.fileModel
+      .find({ userId, parentId, deleted: false }, { _id: 0, deleted: 0 })
+      .exec();
+    return files;
+  }
+
+  async deleteMany(ids: string[]) {
+    const deleted = await this.fileModel.updateMany(
+      {
+        fileId: {
+          $in: ids,
+        },
+      },
+      { $set: { deleted: true } },
+    );
+    return deleted;
+  }
+  async findUsersAll(userId: string) {
+    const files = await this.fileModel
+      .find({ userId, deleted: false }, { _id: 0, deleted: 0 })
       .exec();
     if (!files) {
       throw new NotFoundException(`files not found`);
@@ -33,7 +66,10 @@ export class FileService {
 
   async findAllDir(userId?: string, parentId?: string) {
     const files = await this.fileModel
-      .find({ userId, parentId, dir: true }, { _id: 0 })
+      .find(
+        { userId, parentId, dir: true, deleted: false },
+        { _id: 0, deleted: 0 },
+      )
       .exec();
     if (!files) {
       throw new NotFoundException(`files not found`);
@@ -43,7 +79,7 @@ export class FileService {
 
   async findRoot(userId: string) {
     const file = await this.fileModel
-      .findOne({ userId, parentId: null }, { _id: 0 })
+      .findOne({ userId, parentId: null }, { _id: 0, deleted: 0 })
       .exec();
     if (!file) {
       throw new NotFoundException(`user not found`);
@@ -53,7 +89,7 @@ export class FileService {
 
   async findOne(id: string) {
     const file = await this.fileModel
-      .findOne({ fileId: id }, { _id: 0 })
+      .findOne({ fileId: id, deleted: false }, { _id: 0, deleted: 0 })
       .exec();
     if (!file) {
       throw new NotFoundException(`File #${id} not found`);
@@ -61,9 +97,19 @@ export class FileService {
     return file;
   }
 
+  async search(userId: string, keywords: string) {
+    const reg = new RegExp(keywords, 'i');
+    const files = await this.fileModel.find({ name: reg, userId, deleted: false }, { _id: 0, deleted: 0 }).exec();
+    return files;
+  }
+
   async update(id: string, updateFileDto: UpdateFileDto) {
     const existingFile = await this.fileModel
-      .findOneAndUpdate({ _id: id }, { $set: updateFileDto }, { new: true })
+      .findOneAndUpdate(
+        { fileId: id, deleted: false },
+        { $set: updateFileDto },
+        { new: true },
+      )
       .exec();
     if (!existingFile) {
       throw new NotFoundException(`File #${id} not found`);
@@ -71,6 +117,10 @@ export class FileService {
     return existingFile;
     // return `This action updates a #${id} file`;
   }
+
+  // async findAndDelete(id: string, parentId: string) {
+
+  // }
 
   async remove(id: string) {
     const directory = await this.findOne(id);
@@ -80,16 +130,17 @@ export class FileService {
 
   async findFileContent(id: string) {
     const fileContent = await this.fileContentModel.findOne({ fileId: id });
-    if(!fileContent) {
+    if (!fileContent) {
       throw new NotFoundException(`File content not found`);
     }
     return fileContent;
   }
 
   async updateFileContent(id: string, syncFileDto: SyncFileDto) {
-    console.log(syncFileDto);
+    // console.log(syncFileDto);
+    const { bodyString } = syncFileDto;
     const existingFile = await this.fileContentModel
-      .findOneAndUpdate({ fileId: id }, { $set: syncFileDto }, { new: true })
+      .findOneAndUpdate({ fileId: id }, { $set: { bodyString } }, { new: true })
       .exec();
     if (!existingFile) {
       throw new NotFoundException(`File content not found`);
@@ -98,19 +149,18 @@ export class FileService {
   }
 
   async createFileContent(id: string, createFileDto: SyncFileDto) {
-    
     const fileContent = await this.fileContentModel.findOne({ fileId: id });
-    if(fileContent) {
+    if (fileContent) {
       return new BadRequestException(`file already exist`);
     }
-    
+
     // if(fileContent) {
     //   return new BadRequestException(`file already exist`);
     // }
-    
+
     const syncFile = new this.fileContentModel(createFileDto);
     return syncFile.save();
-    
+
     // const syncFile = new FileContent(createFileDto);
     // return syncFile.save()
   }

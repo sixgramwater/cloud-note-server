@@ -28,8 +28,8 @@ export class FileContent extends Document{
   @Prop()
   created: number;
 
-  @Prop()
-  modifyTime: number;
+  // @Prop()
+  // modifyTime: number;
 }
 
 export const FileContentSchema = SchemaFactory.createForClass(FileContent);

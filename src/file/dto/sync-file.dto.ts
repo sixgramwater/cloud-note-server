@@ -7,23 +7,27 @@ export class SyncFileDto extends PartialType(CreateFileDto) {
   @IsUUID()
   fileId: string;
 
-  @IsOptional()
+  // @IsOptional()
   @IsString()
-  bodyString?: string;
+  bodyString: string;
 
-  @IsOptional()
-  @IsString()
-  parentId?: string;
+  // @IsOptional()
+  // @IsString()
+  // parentId?: string;
 
-  @IsOptional()
-  @IsNumber()
-  modifyTime?: number;
+  // @IsOptional()
+  // @IsNumber()
+  // modifyTime?: number;
 
-  @IsOptional()
-  @IsString()
-  name?: string;
+  // @IsOptional()
+  // @IsString()
+  // name?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  dir?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // dir?: boolean;
+
+  // @IsOptional()
+  // @IsNumber()
+  // type?: number;
 }

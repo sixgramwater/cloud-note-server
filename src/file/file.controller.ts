@@ -12,12 +12,14 @@ import {
   BadRequestException,
   Res,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { FileService } from './file.service';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { SyncFileDto } from './dto/sync-file.dto';
+import { StarFileDto } from './dto/star-file.dto';
 
 @Controller('file')
 export class FileController {
@@ -26,9 +28,18 @@ export class FileController {
   // listPath
   @UseGuards(AuthGuard('jwt'))
   @Post()
-  create(@Body() createFileDto: CreateFileDto, @Req() req) {
+  async create(@Body() createFileDto: CreateFileDto, @Req() req) {
     const { userId } = req.user;
     createFileDto.userId = userId;
+    const { fileId, type } = createFileDto;
+    if (type === 1 || type === 2) {
+      const createFileContentDto = {
+        fileId,
+        bodyString: '',
+        userId,
+      };
+      await this.fileService.createFileContent(fileId, createFileContentDto);
+    }
     return this.fileService.create(createFileDto);
   }
 
@@ -65,6 +76,41 @@ export class FileController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('star')
+  async getStar(@Req() req) {
+    const { userId } = req.user;
+    const entries = await this.fileService.findUsersAll(userId);
+    // console.log(entries);
+    // return entries;
+    const files = entries.filter((entry) => entry.star);
+    files.sort((a, b) => b.updated - a.updated);
+    return files;
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('recent')
+  async getRecent(@Req() req) {
+    const { userId } = req.user;
+    const entries = await this.fileService.findUsersAll(userId);
+    // console.log(entries);
+    // return entries;
+    const files = entries.filter((entry) => !entry.dir);
+    files.sort((a, b) => b.updated - a.updated);
+    return files;
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('search')
+  async search(@Query() query, @Req() req) {
+    const { keywords } = query;
+    const { userId } = req.user;
+    // console.log(keywords)
+    const files = await this.fileService.search(userId, keywords);
+    return files;
+  }
+
+
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async findOne(@Param('id') id: string, @Query() query, @Req() req) {
     const { method, all, sort } = query;
@@ -79,7 +125,7 @@ export class FileController {
       // 所有文件夹
       return this.fileService.findOne(id);
     } else if (method === 'listPageByParentId') {
-      const page = await this.fileService.findAllDir(userId, id);
+      const page = await this.fileService.findAll(userId, id);
       return {
         count: page.length,
         entries: page,
@@ -94,9 +140,78 @@ export class FileController {
     return this.fileService.update(id, updateFileDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.fileService.remove(id);
+  async remove(@Param('id') id: string, @Req() req) {
+    const { userId } = req.user;
+    const entryItem = await this.fileService.findOne(id);
+    if(entryItem) {
+      const { userId: rightUserId, dir } = entryItem;
+      if(userId !== rightUserId)  {
+        console.log([userId, rightUserId]);
+        throw new UnauthorizedException('没有权限删除该文件');
+      }
+      if(dir) {
+        const idList = [];
+        idList.push(id);
+        let queue = [];
+        queue.push(id);
+        while(queue.length !== 0) {
+          const parentId = queue.pop();
+          const entries = await this.fileService.findAllWithoutErrorHandle(userId, parentId);
+          if(entries) {
+            entries.forEach(entry => {
+              idList.push(entry.fileId);
+              if(entry.dir) {
+                queue.push(entry.fileId);
+              }
+            })
+          }
+        }
+        console.log(idList);
+        const deletedFiles = this.fileService.deleteMany(idList);
+        if(deletedFiles) {
+          return deletedFiles;
+        } else {
+          throw new NotFoundException();
+        }
+        // while(idList.)
+
+      } else {
+        const updateFileDto = {
+          fileId: id,
+          deleted: true,
+        } as any;
+        this.fileService.update(id, updateFileDto);
+      }
+    } else {
+      throw new NotFoundException();
+    }
+    // const
+    // return this.fileService.remove(id);
+  }
+
+  // @UseGuards(AuthGuard('jwt'))
+  // @Get('star')
+  // async getStar(@Req() req) {
+  //   const { userId } = req.user;
+  //   const entries = await this.fileService.findAll(userId);
+  //   const files = entries.filter(entry=>!entry.dir);
+  //   files.sort((a, b) => a.updated - b.updated);
+  //   return files;
+  // }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('star')
+  async star(@Body() starFileDTO: StarFileDto, @Req() req) {
+    const { userId } = req.user;
+    const { star, fileId } = starFileDTO;
+    const entry = await this.fileService.findOne(fileId);
+    if (entry) {
+      const { fileId: rightFileId } = entry;
+      if (rightFileId !== fileId) throw new UnauthorizedException();
+      return await this.fileService.update(fileId, { fileId, star });
+    }
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -105,39 +220,52 @@ export class FileController {
     const { userId } = req.user;
     const { fileId } = syncFileDto;
     const { method } = query;
-    if(!method) {
-      throw new BadRequestException()
-    } else if(method === 'push') {
-      const { bodyString, name, fileId, parentId } = syncFileDto;
-      // 第一次创建
-      if(name) {
-        syncFileDto.userId = userId;
-        if(!parentId  || !fileId)  throw new BadRequestException();
-        const createDto = syncFileDto as CreateFileDto;
-        const entry = await this.fileService.create(createDto);
-        try{
-          await this.fileService.createFileContent(fileId, syncFileDto);
+    if (!method) {
+      throw new BadRequestException();
+    } else if (method === 'push') {
+      // const { bodyString, name, fileId, parentId } = syncFileDto;
+      const { bodyString, fileId } = syncFileDto;
 
-        } catch(err) {
-          console.log(err);
-        }
-        return entry;
-      } else {
-        // 更新
-        const entry = await this.fileService.findOne(fileId);
-        if(!entry) {
-          throw new NotFoundException();
-        }
-        await this.fileService.updateFileContent(fileId, syncFileDto);
-        return entry;
+      const entry = await this.fileService.findOne(fileId);
+      if (!entry) {
+        throw new NotFoundException();
       }
-    } else if(method === 'download') {
+      const { userId: rightUserId } = entry;
+      if (userId !== rightUserId)
+        throw new UnauthorizedException('没有权限修改');
+      const syncFile = {
+        fileId,
+        bodyString,
+        userId,
+      };
+      return await this.fileService.updateFileContent(fileId, syncFile);
+      // // 第一次创建
+      // if(name) {
+      //   syncFileDto.userId = userId;
+      //   if(!parentId  || !fileId)  throw new BadRequestException();
+      //   const createDto = syncFileDto as CreateFileDto;
+      //   const entry = await this.fileService.create(createDto);
+      //   try{
+      //     await this.fileService.createFileContent(fileId, syncFileDto);
+
+      //   } catch(err) {
+      //     console.log(err);
+      //   }
+      //   return entry;
+      // } else {
+      //   // 更新
+      //   const entry = await this.fileService.findOne(fileId);
+      //   if(!entry) {
+      //     throw new NotFoundException();
+      //   }
+      //   await this.fileService.updateFileContent(fileId, syncFileDto);
+      //   return entry;
+      // }
+    } else if (method === 'download') {
       const fileContent = await this.fileService.findFileContent(fileId);
       // res.
       return fileContent.bodyString;
-
-    } else if(method === 'delete') {
-
+    } else if (method === 'delete') {
     } else {
       throw new BadRequestException();
     }

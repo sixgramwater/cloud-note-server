@@ -25,6 +25,8 @@ export class AuthService {
   async login(user: any) {
     const payload = { username: user.username, sub: user._id };
     return {
+      username: user.username,
+      userId: user._id,
       access_token: this.jwtService.sign(payload),
     };
   }
@@ -39,6 +41,7 @@ export class AuthService {
       userId: res._id,
       parentId: null,
       dir: true,
+      type: 0,
     }
     await this.fileService.create(userRootEntry);
     return res;
