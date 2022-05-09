@@ -28,6 +28,7 @@ export class AuthService {
       username: user.username,
       userId: user._id,
       access_token: this.jwtService.sign(payload),
+      expires: Date.now() + 30000000,
     };
   }
 

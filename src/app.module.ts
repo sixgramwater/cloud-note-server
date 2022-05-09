@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { DirectoryModule } from './directory/directory.module';
 import { FileModule } from './file/file.module';
 import { EntryModule } from './entry/entry.module';
+import { UploadModule } from './upload/upload.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -15,9 +17,11 @@ import { EntryModule } from './entry/entry.module';
     UsersModule,
     AuthModule,
     MongooseModule.forRoot('mongodb://localhost:27017/cloud-note'),
+    ConfigModule.forRoot(),
     DirectoryModule,
     FileModule,
-    EntryModule,    
+    EntryModule,
+    UploadModule,    
   ],
   controllers: [AppController],
   providers: [AppService],
