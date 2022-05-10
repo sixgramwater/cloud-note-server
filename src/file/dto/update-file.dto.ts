@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsBoolean, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CreateFileDto } from './create-file.dto';
 
 export class UpdateFileDto extends PartialType(CreateFileDto) {
@@ -7,12 +7,15 @@ export class UpdateFileDto extends PartialType(CreateFileDto) {
   @IsUUID()
   fileId: string;
 
+  @IsOptional()
   @IsBoolean()
   shared?: boolean;
 
+  @IsOptional()
   @IsBoolean()
   bloged?: boolean;
 
+  @IsOptional()
   @IsBoolean()
   star?: boolean;
 }

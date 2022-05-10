@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
+import { diskStorage } from 'multer';
+import { editFileName, imageFileFilter } from 'src/utils/file-uploading.utils';
 import { UploadService } from './upload.service';
 
 // const upload = multer({dest:'../uploads'}).single("single");
@@ -18,7 +20,12 @@ export class UploadController {
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
-      dest: '../upload',
+      // dest: '../upload',
+      storage: diskStorage({
+        destination: '../upload',
+        filename: editFileName,
+      }),
+      fileFilter: imageFileFilter,
       // storage:
       // storage:
       // storage: multer.diskStorage({
