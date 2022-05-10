@@ -10,6 +10,8 @@ import { FileModule } from './file/file.module';
 import { EntryModule } from './entry/entry.module';
 import { UploadModule } from './upload/upload.module';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -18,6 +20,13 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     MongooseModule.forRoot('mongodb://localhost:27017/cloud-note'),
     ConfigModule.forRoot(),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'upload'),
+      serveStaticOptions: {
+        index: false,
+      }
+      // rootPath: join(__dirname, '..', '..','react-cloud-note', 'build'),
+    }),
     DirectoryModule,
     FileModule,
     EntryModule,
