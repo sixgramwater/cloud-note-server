@@ -88,6 +88,39 @@ export class FileController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('bloged')
+  async getBlog(@Req() req) {
+    const { userId } = req.user;
+    const entries = await this.fileService.findUsersAll(userId, {
+      bloged: true
+    });
+    // console.log(entries);
+    // return entries;
+    // const files = entries.filter((entry) => entry.bloged);
+    const files = entries;
+    files.sort((a, b) => b.updated - a.updated);
+    return files;
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('shared')
+  async getShared(@Req() req) {
+    const { userId } = req.user;
+    const entries = await this.fileService.findUsersAll(userId, {
+      shared: true
+    });
+    // console.log(entries);
+    // console.log(entries);
+    // return entries;
+    // const files = entries.filter((entry) => entry.shared);
+    // console.log(files);
+    
+    const files = entries;
+    files.sort((a, b) => b.updated - a.updated);
+    return files;
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('recent')
   async getRecent(@Req() req) {
     const { userId } = req.user;
@@ -108,7 +141,6 @@ export class FileController {
     const files = await this.fileService.search(userId, keywords);
     return files;
   }
-
 
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')
@@ -145,38 +177,40 @@ export class FileController {
   async remove(@Param('id') id: string, @Req() req) {
     const { userId } = req.user;
     const entryItem = await this.fileService.findOne(id);
-    if(entryItem) {
+    if (entryItem) {
       const { userId: rightUserId, dir } = entryItem;
-      if(userId !== rightUserId)  {
+      if (userId !== rightUserId) {
         console.log([userId, rightUserId]);
         throw new UnauthorizedException('没有权限删除该文件');
       }
-      if(dir) {
+      if (dir) {
         const idList = [];
         idList.push(id);
         let queue = [];
         queue.push(id);
-        while(queue.length !== 0) {
+        while (queue.length !== 0) {
           const parentId = queue.pop();
-          const entries = await this.fileService.findAllWithoutErrorHandle(userId, parentId);
-          if(entries) {
-            entries.forEach(entry => {
+          const entries = await this.fileService.findAllWithoutErrorHandle(
+            userId,
+            parentId,
+          );
+          if (entries) {
+            entries.forEach((entry) => {
               idList.push(entry.fileId);
-              if(entry.dir) {
+              if (entry.dir) {
                 queue.push(entry.fileId);
               }
-            })
+            });
           }
         }
         console.log(idList);
         const deletedFiles = this.fileService.deleteMany(idList);
-        if(deletedFiles) {
+        if (deletedFiles) {
           return deletedFiles;
         } else {
           throw new NotFoundException();
         }
         // while(idList.)
-
       } else {
         const updateFileDto = {
           fileId: id,

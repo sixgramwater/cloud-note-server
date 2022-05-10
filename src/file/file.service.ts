@@ -54,9 +54,9 @@ export class FileService {
     );
     return deleted;
   }
-  async findUsersAll(userId: string) {
+  async findUsersAll(userId: string, options?) {
     const files = await this.fileModel
-      .find({ userId, deleted: false }, { _id: 0, deleted: 0 })
+      .find({ userId, deleted: false, ...options }, { _id: 0, deleted: 0, __v: 0 })
       .exec();
     if (!files) {
       throw new NotFoundException(`files not found`);
