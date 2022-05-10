@@ -47,10 +47,29 @@ export class File extends Document{
   })
   star: boolean;
 
+  @Prop()
+  starAt: number;
+
   @Prop({
     default: false
   })
   deleted: boolean;
+
+  @Prop({
+    default: false
+  })
+  shared: boolean;
+
+  @Prop()
+  sharedAt: number;
+
+  @Prop({
+    default: false
+  })
+  bloged: boolean;
+
+  @Prop()
+  blogedAt: number;
   // @Prop()
 
 }
